@@ -1,6 +1,7 @@
 const nodemailer = require('nodemailer');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const ContactRequest = require('../models/ContactRequest');
 
 function buildTransporterFromEnv() {
   const host = process.env.SMTP_HOST;
@@ -70,31 +71,86 @@ exports.sendContactMessage = async (req, res) => {
       });
     }
 
+    // Add timeout and connection options
+    transporter.set('timeout', 10000); // 10 second timeout
+    transporter.set('connectionTimeout', 5000); // 5 second connection timeout
+
     console.log('Sending email to:', toAddress);
     console.log('From address:', fromAddress);
 
-    const info = await transporter.sendMail(mailOptions);
-    const previewUrl = nodemailer.getTestMessageUrl(info) || null;
-    console.log('Email sent successfully:', info.messageId);
-    
-    // Optional: confirmation email to sender
     try {
-      await transporter.sendMail({
-        from: fromAddress,
-        to: email,
-        subject: `We sent your message about: ${post.title}`,
-        text: `Hi ${name},\n\nWe forwarded your message to ${owner.name || 'the post owner'}. They may contact you at ${email}${phone ? ` or ${phone}` : ''}.\n\nYour message:\n${message}\n\n— Lost & Found App`,
-      });
-      console.log('Confirmation email sent to sender');
-    } catch (error) {
-      console.log('Failed to send confirmation email:', error.message);
-    }
+      const info = await transporter.sendMail(mailOptions);
+      const previewUrl = nodemailer.getTestMessageUrl(info) || null;
+      console.log('Email sent successfully:', info.messageId);
+      
+      // Optional: confirmation email to sender
+      try {
+        await transporter.sendMail({
+          from: fromAddress,
+          to: email,
+          subject: `We sent your message about: ${post.title}`,
+          text: `Hi ${name},\n\nWe forwarded your message to ${owner.name || 'the post owner'}. They may contact you at ${email}${phone ? ` or ${phone}` : ''}.\n\nYour message:\n${message}\n\n— Lost & Found App`,
+        });
+        console.log('Confirmation email sent to sender');
+      } catch (error) {
+        console.log('Failed to send confirmation email:', error.message);
+      }
 
-    console.log('Contact request completed successfully');
-    return res.json({ message: 'Contact request sent to post owner.', previewUrl });
+      console.log('Contact request completed successfully');
+      return res.json({ message: 'Contact request sent to post owner.', previewUrl });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError.message);
+      
+      // Fallback: Store contact request in database for manual processing
+      try {
+        const contactRequest = new ContactRequest({
+          postId,
+          postTitle: post.title,
+          ownerEmail: toAddress,
+          ownerName: owner.name,
+          senderName: name,
+          senderEmail: email,
+          senderPhone: phone,
+          message,
+          status: 'pending',
+          createdAt: new Date()
+        });
+        
+        await contactRequest.save();
+        console.log('Contact request saved to database as fallback');
+        
+        return res.json({ 
+          message: 'Contact request received! We\'ll notify the post owner manually.', 
+          fallback: true 
+        });
+      } catch (dbError) {
+        console.error('Database fallback failed:', dbError.message);
+        return res.status(500).json({ 
+          message: 'Contact request received but email delivery failed. Please try again later.' 
+        });
+      }
+    }
   } catch (error) {
     console.error('sendContactMessage error:', error);
     return res.status(500).json({ message: 'Failed to send contact message' });
+  }
+};
+
+// Admin endpoint to view pending contact requests
+exports.getPendingContactRequests = async (req, res) => {
+  try {
+    const pendingRequests = await ContactRequest.find({ status: 'pending' })
+      .sort({ createdAt: -1 })
+      .limit(50);
+    
+    res.json({ 
+      message: 'Pending contact requests retrieved',
+      requests: pendingRequests,
+      count: pendingRequests.length
+    });
+  } catch (error) {
+    console.error('Error fetching pending contact requests:', error);
+    res.status(500).json({ message: 'Failed to fetch pending contact requests' });
   }
 };
 
