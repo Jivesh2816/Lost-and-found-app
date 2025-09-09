@@ -77,6 +77,16 @@ exports.sendContactMessage = async (req, res) => {
     // Add timeout and connection options
     transporter.set('timeout', 10000); // 10 second timeout
     transporter.set('connectionTimeout', 5000); // 5 second connection timeout
+    
+    // Test SMTP connection
+    try {
+      console.log('Testing SMTP connection...');
+      await transporter.verify();
+      console.log('SMTP connection verified successfully');
+    } catch (verifyError) {
+      console.error('SMTP connection failed:', verifyError.message);
+      // Continue anyway, sometimes verify fails but sending works
+    }
 
     if (skipEmail) {
       console.log('Skipping email, storing in database directly');
@@ -113,6 +123,12 @@ exports.sendContactMessage = async (req, res) => {
 
     console.log('Sending email to:', toAddress);
     console.log('From address:', fromAddress);
+    console.log('SMTP Config:', {
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      user: process.env.SMTP_USER,
+      hasPass: !!process.env.SMTP_PASS
+    });
 
     // Try to send email with timeout
     const emailPromise = transporter.sendMail(mailOptions);
@@ -124,6 +140,9 @@ exports.sendContactMessage = async (req, res) => {
       const info = await Promise.race([emailPromise, timeoutPromise]);
       const previewUrl = nodemailer.getTestMessageUrl(info) || null;
       console.log('Email sent successfully:', info.messageId);
+      console.log('Email response:', info.response);
+      console.log('Email accepted:', info.accepted);
+      console.log('Email rejected:', info.rejected);
       
       // Optional: confirmation email to sender (non-blocking)
       setImmediate(async () => {
