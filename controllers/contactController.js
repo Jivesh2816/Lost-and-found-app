@@ -45,8 +45,8 @@ exports.sendContactMessage = async (req, res) => {
     const toAddress = owner.email;
     const fromAddress = process.env.MAIL_FROM || 'no-reply@lost-and-found.local';
     
-    // Email is now configured, enable email sending
-    const skipEmail = false;
+    // Temporarily disable email to prevent server hangs
+    const skipEmail = true;
 
     const mailOptions = {
       from: fromAddress,
@@ -78,15 +78,8 @@ exports.sendContactMessage = async (req, res) => {
     transporter.set('timeout', 10000); // 10 second timeout
     transporter.set('connectionTimeout', 5000); // 5 second connection timeout
     
-    // Test SMTP connection
-    try {
-      console.log('Testing SMTP connection...');
-      await transporter.verify();
-      console.log('SMTP connection verified successfully');
-    } catch (verifyError) {
-      console.error('SMTP connection failed:', verifyError.message);
-      // Continue anyway, sometimes verify fails but sending works
-    }
+    // Skip SMTP verification for now to prevent server hangs
+    console.log('Skipping SMTP verification to prevent server hangs');
 
     if (skipEmail) {
       console.log('Skipping email, storing in database directly');

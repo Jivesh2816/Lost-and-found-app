@@ -96,6 +96,18 @@ mongoose.connect(mongoURI).then(() => {
       process.exit(0);
     });
   });
+
+  // Handle other signals
+  process.on('SIGINT', () => {
+    console.log('🛑 SIGINT received, shutting down gracefully...');
+    server.close(() => {
+      console.log('✅ Server closed');
+      process.exit(0);
+    });
+  });
+
+  // Log when server is ready
+  console.log('🎉 Server is ready to accept connections');
   
 }).catch((error) => {
   console.error('❌ MongoDB connection error:', error);
