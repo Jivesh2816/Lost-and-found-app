@@ -22,8 +22,11 @@ function buildTransporterFromEnv() {
 
 exports.sendContactMessage = async (req, res) => {
   try {
+    console.log('Contact request received:', { postId: req.body.postId, name: req.body.name, email: req.body.email });
+    
     const { postId, name, email, phone, message } = req.body;
     if (!postId || !name || !email || !message) {
+      console.log('Missing required fields');
       return res.status(400).json({ message: 'postId, name, email, and message are required' });
     }
 
@@ -67,8 +70,13 @@ exports.sendContactMessage = async (req, res) => {
       });
     }
 
+    console.log('Sending email to:', toAddress);
+    console.log('From address:', fromAddress);
+
     const info = await transporter.sendMail(mailOptions);
     const previewUrl = nodemailer.getTestMessageUrl(info) || null;
+    console.log('Email sent successfully:', info.messageId);
+    
     // Optional: confirmation email to sender
     try {
       await transporter.sendMail({
@@ -77,8 +85,12 @@ exports.sendContactMessage = async (req, res) => {
         subject: `We sent your message about: ${post.title}`,
         text: `Hi ${name},\n\nWe forwarded your message to ${owner.name || 'the post owner'}. They may contact you at ${email}${phone ? ` or ${phone}` : ''}.\n\nYour message:\n${message}\n\n— Lost & Found App`,
       });
-    } catch (_) {}
+      console.log('Confirmation email sent to sender');
+    } catch (error) {
+      console.log('Failed to send confirmation email:', error.message);
+    }
 
+    console.log('Contact request completed successfully');
     return res.json({ message: 'Contact request sent to post owner.', previewUrl });
   } catch (error) {
     console.error('sendContactMessage error:', error);

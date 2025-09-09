@@ -41,7 +41,7 @@ const Signup = () => {
         />
         <input 
           type="email" 
-          placeholder="📧 UW Email (@uwaterloo.ca)" 
+          placeholder="📧 Email Address" 
           value={email} 
           onChange={e => setEmail(e.target.value)} 
           required 

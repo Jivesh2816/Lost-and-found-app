@@ -33,7 +33,7 @@ const Login = () => {
       <form onSubmit={handleSubmit}>
         <input 
           type="email" 
-          placeholder="📧 UW Email (@uwaterloo.ca)" 
+          placeholder="📧 Email Address" 
           value={email} 
           onChange={e => setEmail(e.target.value)} 
           required 
