@@ -41,12 +41,21 @@ app.use('/api/contact', contactRoutes);
 
 // Health check endpoint for Railway
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+  console.log('Health check requested');
+  try {
+    res.status(200).json({ 
+      status: 'OK', 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development',
+      memory: process.memoryUsage(),
+      pid: process.pid
+    });
+    console.log('Health check response sent');
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ error: 'Health check failed' });
+  }
 });
 
 // Test endpoint to verify routes are working
@@ -59,18 +68,36 @@ app.get('/api/test', (req, res) => {
 
 // Basic route to check server is running
 app.get('/', (req, res) => {
-  res.send('API is running');
+  console.log('Root endpoint requested');
+  res.json({ 
+    message: 'API is running',
+    status: 'OK',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Connect to MongoDB and start server
 const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/lost-and-found';
+console.log('Attempting to connect to MongoDB...');
 mongoose.connect(mongoURI).then(() => {
-  console.log('Connected to MongoDB');
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Health check available at: http://0.0.0.0:${PORT}/health`);
+  console.log('✅ Connected to MongoDB successfully');
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🔍 Health check available at: http://0.0.0.0:${PORT}/health`);
+    console.log(`🌐 Root endpoint available at: http://0.0.0.0:${PORT}/`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
+  
+  // Handle server shutdown gracefully
+  process.on('SIGTERM', () => {
+    console.log('🛑 SIGTERM received, shutting down gracefully...');
+    server.close(() => {
+      console.log('✅ Server closed');
+      process.exit(0);
+    });
+  });
+  
 }).catch((error) => {
-  console.error('MongoDB connection error:', error);
+  console.error('❌ MongoDB connection error:', error);
   process.exit(1);
 });
