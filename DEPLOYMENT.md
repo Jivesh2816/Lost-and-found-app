@@ -48,13 +48,12 @@
 
 ## Step 4: Update CORS Settings
 
-1. Go back to your Railway backend
-2. Update the CORS origin in `server.js` to your Vercel domain:
-   ```javascript
-   origin: process.env.NODE_ENV === 'production' 
-     ? ['https://your-app.vercel.app'] 
-     : 'http://localhost:3000',
+1. Go to your Railway backend dashboard
+2. Add this environment variable:
    ```
+   FRONTEND_URL=https://your-actual-vercel-domain.vercel.app
+   ```
+   (Replace with your actual Vercel domain)
 3. Redeploy the backend
 
 ## Step 5: Test Your Deployment
