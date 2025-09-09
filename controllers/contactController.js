@@ -45,8 +45,8 @@ exports.sendContactMessage = async (req, res) => {
     const toAddress = owner.email;
     const fromAddress = process.env.MAIL_FROM || 'no-reply@lost-and-found.local';
     
-    // Email is configured, enable email sending
-    const skipEmail = false;
+    // Temporarily disable email to reduce memory usage and prevent crashes
+    const skipEmail = true;
 
     const mailOptions = {
       from: fromAddress,

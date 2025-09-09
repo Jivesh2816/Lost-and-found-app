@@ -111,9 +111,24 @@ mongoose.connect(mongoURI).then(() => {
   // Log when server is ready
   console.log('🎉 Server is ready to accept connections');
   
-  // Keep-alive mechanism to prevent Railway from killing the server
+  // Memory optimization and keep-alive
   setInterval(() => {
-    console.log('💓 Keep-alive ping - Server is running');
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+    
+    console.log('💓 Keep-alive ping - Server is running', {
+      memory: heapUsedMB + 'MB',
+      uptime: Math.round(process.uptime()) + 's'
+    });
+    
+    // Force garbage collection if memory usage is high
+    if (heapUsedMB > 50) {
+      console.log('🧹 High memory usage detected, forcing garbage collection');
+      if (global.gc) {
+        global.gc();
+        console.log('✅ Garbage collection completed');
+      }
+    }
   }, 30000); // Every 30 seconds
   
 }).catch((error) => {
