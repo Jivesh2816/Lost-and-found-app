@@ -44,6 +44,9 @@ exports.sendContactMessage = async (req, res) => {
     let transporter = buildTransporterFromEnv();
     const toAddress = owner.email;
     const fromAddress = process.env.MAIL_FROM || 'no-reply@lost-and-found.local';
+    
+    // Email is now configured, enable email sending
+    const skipEmail = false;
 
     const mailOptions = {
       from: fromAddress,
@@ -75,26 +78,67 @@ exports.sendContactMessage = async (req, res) => {
     transporter.set('timeout', 10000); // 10 second timeout
     transporter.set('connectionTimeout', 5000); // 5 second connection timeout
 
+    if (skipEmail) {
+      console.log('Skipping email, storing in database directly');
+      
+      // Store contact request in database directly
+      try {
+        const contactRequest = new ContactRequest({
+          postId,
+          postTitle: post.title,
+          ownerEmail: toAddress,
+          ownerName: owner.name,
+          senderName: name,
+          senderEmail: email,
+          senderPhone: phone,
+          message,
+          status: 'pending',
+          createdAt: new Date()
+        });
+        
+        await contactRequest.save();
+        console.log('Contact request saved to database');
+        
+        return res.json({ 
+          message: 'Contact request received! We\'ll notify the post owner manually.', 
+          fallback: true 
+        });
+      } catch (dbError) {
+        console.error('Database save failed:', dbError.message);
+        return res.status(500).json({ 
+          message: 'Contact request received but failed to save. Please try again later.' 
+        });
+      }
+    }
+
     console.log('Sending email to:', toAddress);
     console.log('From address:', fromAddress);
 
+    // Try to send email with timeout
+    const emailPromise = transporter.sendMail(mailOptions);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Email timeout')), 8000)
+    );
+
     try {
-      const info = await transporter.sendMail(mailOptions);
+      const info = await Promise.race([emailPromise, timeoutPromise]);
       const previewUrl = nodemailer.getTestMessageUrl(info) || null;
       console.log('Email sent successfully:', info.messageId);
       
-      // Optional: confirmation email to sender
-      try {
-        await transporter.sendMail({
-          from: fromAddress,
-          to: email,
-          subject: `We sent your message about: ${post.title}`,
-          text: `Hi ${name},\n\nWe forwarded your message to ${owner.name || 'the post owner'}. They may contact you at ${email}${phone ? ` or ${phone}` : ''}.\n\nYour message:\n${message}\n\n— Lost & Found App`,
-        });
-        console.log('Confirmation email sent to sender');
-      } catch (error) {
-        console.log('Failed to send confirmation email:', error.message);
-      }
+      // Optional: confirmation email to sender (non-blocking)
+      setImmediate(async () => {
+        try {
+          await transporter.sendMail({
+            from: fromAddress,
+            to: email,
+            subject: `We sent your message about: ${post.title}`,
+            text: `Hi ${name},\n\nWe forwarded your message to ${owner.name || 'the post owner'}. They may contact you at ${email}${phone ? ` or ${phone}` : ''}.\n\nYour message:\n${message}\n\n— Lost & Found App`,
+          });
+          console.log('Confirmation email sent to sender');
+        } catch (error) {
+          console.log('Failed to send confirmation email:', error.message);
+        }
+      });
 
       console.log('Contact request completed successfully');
       return res.json({ message: 'Contact request sent to post owner.', previewUrl });
