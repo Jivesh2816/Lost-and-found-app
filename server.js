@@ -43,15 +43,17 @@ app.use('/api/contact', contactRoutes);
 app.get('/health', (req, res) => {
   console.log('Health check requested');
   try {
-    res.status(200).json({ 
+    const healthData = { 
       status: 'OK', 
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || 'development',
       memory: process.memoryUsage(),
       pid: process.pid
-    });
-    console.log('Health check response sent');
+    };
+    console.log('Health check response:', healthData);
+    res.status(200).json(healthData);
+    console.log('Health check response sent successfully');
   } catch (error) {
     console.error('Health check error:', error);
     res.status(500).json({ error: 'Health check failed' });
@@ -108,6 +110,11 @@ mongoose.connect(mongoURI).then(() => {
 
   // Log when server is ready
   console.log('🎉 Server is ready to accept connections');
+  
+  // Keep-alive mechanism to prevent Railway from killing the server
+  setInterval(() => {
+    console.log('💓 Keep-alive ping - Server is running');
+  }, 30000); // Every 30 seconds
   
 }).catch((error) => {
   console.error('❌ MongoDB connection error:', error);

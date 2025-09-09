@@ -45,8 +45,8 @@ exports.sendContactMessage = async (req, res) => {
     const toAddress = owner.email;
     const fromAddress = process.env.MAIL_FROM || 'no-reply@lost-and-found.local';
     
-    // Temporarily disable email to prevent server hangs
-    const skipEmail = true;
+    // Email is configured, enable email sending
+    const skipEmail = false;
 
     const mailOptions = {
       from: fromAddress,
@@ -207,6 +207,33 @@ exports.getPendingContactRequests = async (req, res) => {
   } catch (error) {
     console.error('Error fetching pending contact requests:', error);
     res.status(500).json({ message: 'Failed to fetch pending contact requests' });
+  }
+};
+
+// Test email endpoint
+exports.testEmail = async (req, res) => {
+  try {
+    const transporter = buildTransporterFromEnv();
+    if (!transporter) {
+      return res.status(400).json({ message: 'Email not configured' });
+    }
+
+    const testEmail = {
+      from: process.env.MAIL_FROM || 'no-reply@lost-and-found.local',
+      to: req.body.email || 'test@example.com',
+      subject: 'Test Email from Lost & Found App',
+      text: 'This is a test email to verify email functionality is working.'
+    };
+
+    const info = await transporter.sendMail(testEmail);
+    res.json({ 
+      message: 'Test email sent successfully',
+      messageId: info.messageId,
+      response: info.response
+    });
+  } catch (error) {
+    console.error('Test email failed:', error);
+    res.status(500).json({ message: 'Test email failed', error: error.message });
   }
 };
 
